@@ -1,40 +1,70 @@
-import { useState } from "react";
+import { act, use, useReducer } from "react";
+
+const products = [
+  { name: "Mela", price: 0.5 },
+  { name: "Pane", price: 1.2 },
+  { name: "Latte", price: 1.0 },
+  { name: "Pasta", price: 0.7 },
+];
+
+const initialCart = [];
+
+const sanitizeQty = (val) => {
+  const n = Math.floor(Number(val));
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+};
+
+function cartReducer(state, action) {
+  switch (action.type) {
+    case "ADD_ITEM": {
+      const { product } = action;
+      const exists = state.some((p) => p.name === product.name);
+      if (exists) return state;
+      return [...state, { ...product, quantity: 1 }];
+    }
+    case "REMOVE_ITEM": {
+      const { name } = action;
+      return state.filter((p) => p.name !== name);
+    }
+    case "UPDATE_ITEM": {
+      const { name, quantity } = action;
+      const nextQty = sanitizeQty(quantity);
+      return state.map((p) => {
+        return p.name === name ? { ...p, quantity: nextQty } : p;
+      });
+    }
+    default:
+      return state;
+  }
+}
 
 function App() {
-  const products = [
-    { name: "Mela", price: 0.5 },
-    { name: "Pane", price: 1.2 },
-    { name: "Latte", price: 1.0 },
-    { name: "Pasta", price: 0.7 },
-  ];
+  const [cart, dispatchCart] = useReducer(cartReducer, initialCart);
 
-  const [addedProducts, setAddedProducts] = useState([]);
-
-  const sanitizeQty = (val) => {
-    const n = Math.floor(Number(val));
-    return Number.isFinite(n) && n >= 1 ? n : 1;
-  };
+  const isInCart = (name) => cart.some((p) => p.name === name);
 
   const addToCart = (product) => {
-    setAddedProducts((prev) => {
-      const alreadyInCart = prev.some((p) => p.name === product.name);
-      return alreadyInCart ? updateProductQuantity(prev, product.name) : [...prev, { ...product, quantity: 1 }];
-    });
-  };
-
-  const updateProductQuantity = (arr, name, nextQty) => {
-    return arr.map((item) => {
-      return item.name === name ? { ...item, quantity: nextQty === undefined ? item.quantity + 1 : sanitizeQty(nextQty) } : item;
-    });
+    if (isInCart(product.name)) {
+      const current = cart.find((p) => p.name === product.name);
+      dispatchCart({
+        type: "UPDATE_ITEM",
+        name: product.name,
+        quantity: current.quantity + 1,
+      });
+    } else {
+      dispatchCart({ type: "ADD_ITEM", product });
+    }
   };
 
   const removeFromCart = (name) => {
-    setAddedProducts((prev) => prev.filter((p) => p.name !== name));
+    dispatchCart({ type: "REMOVE_ITEM", name });
   };
 
-  const total = addedProducts.reduce((acc, prod) => acc + prod.price * prod.quantity, 0);
+  const handleQtyChange = (name, val) => {
+    dispatchCart({ type: "UPDATE_ITEM", name, quantity: val });
+  };
 
-  const isInCart = (name) => addedProducts.some((p) => p.name === name);
+  const total = cart.reduce((sum, p) => sum + p.price * p.quantity, 0);
 
   return (
     <>
@@ -53,26 +83,15 @@ function App() {
           );
         })}
       </ul>
-      {addedProducts.length > 0 && (
+      {cart.length > 0 && (
         <>
           <h3>Carrello</h3>
           <ul>
-            {addedProducts.map((item) => {
+            {cart.map((item) => {
               return (
                 <li style={{ marginBottom: 8 }} key={item.name}>
                   {item.name} - {item.price.toFixed(2)} - Quantità:{" "}
-                  <input
-                    style={{ padding: 5 }}
-                    type="number"
-                    min={1}
-                    step={1}
-                    inputMode="numeric"
-                    value={item.quantity}
-                    onChange={(e) => setAddedProducts((prev) => updateProductQuantity(prev, item.name, e.target.value))}
-                  />
-                  <button className="btn" onClick={() => setAddedProducts((prev) => updateProductQuantity(prev, item.name))} style={{ marginLeft: 5 }}>
-                    +
-                  </button>
+                  <input style={{ padding: 5 }} type="number" min={1} step={1} inputMode="numeric" value={item.quantity} onChange={(e) => handleQtyChange(item.name, e.target.value)} />
                   <button className="btn" onClick={() => removeFromCart(item.name)} style={{ marginLeft: 5 }}>
                     Rimuovi
                   </button>
