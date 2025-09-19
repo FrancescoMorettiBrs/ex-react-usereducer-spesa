@@ -10,6 +10,11 @@ function App() {
 
   const [addedProducts, setAddedProducts] = useState([]);
 
+  const sanitizeQty = (val) => {
+    const n = Math.floor(Number(val));
+    return Number.isFinite(n) && n >= 1 ? n : 1;
+  };
+
   const addToCart = (product) => {
     setAddedProducts((prev) => {
       const alreadyInCart = prev.some((p) => p.name === product.name);
@@ -17,9 +22,9 @@ function App() {
     });
   };
 
-  const updateProductQuantity = (arr, name) => {
+  const updateProductQuantity = (arr, name, nextQty) => {
     return arr.map((item) => {
-      return item.name === name ? { ...item, quantity: item.quantity + 1 } : item;
+      return item.name === name ? { ...item, quantity: nextQty === undefined ? item.quantity + 1 : sanitizeQty(nextQty) } : item;
     });
   };
 
@@ -55,7 +60,16 @@ function App() {
             {addedProducts.map((item) => {
               return (
                 <li style={{ marginBottom: 8 }} key={item.name}>
-                  {item.name} - {item.price.toFixed(2)} - Quantità: {item.quantity}
+                  {item.name} - {item.price.toFixed(2)} - Quantità:{" "}
+                  <input
+                    style={{ padding: 5 }}
+                    type="number"
+                    min={1}
+                    step={1}
+                    inputMode="numeric"
+                    value={item.quantity}
+                    onChange={(e) => setAddedProducts((prev) => updateProductQuantity(prev, item.name, e.target.value))}
+                  />
                   <button className="btn" onClick={() => setAddedProducts((prev) => updateProductQuantity(prev, item.name))} style={{ marginLeft: 5 }}>
                     +
                   </button>
